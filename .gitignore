@@ -1,0 +1,45 @@
+# Build output
+build/
+bin/
+obj/
+dist/
+release/
+
+# Pixi
+.pixi/
+
+# Agent/editor cruft
+.claude/
+.lab/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+AGENTS.md
+CLAUDE.md
+NEXUS_MODS.md
+skills/
+.mcp.json
+
+# Game DLLs / local libs (never committed)
+libs/
+prebuilt/*.dll
+prebuilt/*.exe
+prebuilt/*.pdb
+
+# Game binaries and game data, anywhere in the tree. Nothing here is ours to
+# redistribute, and the offsets work reads q2rtx.exe and q2rtx.pdb out of a
+# local install, so a stray copy landing at the repo root is the realistic
+# accident. A public repo cannot take one back: deleting the file later leaves
+# every clone carrying it and GitHub still serving the blob by SHA.
+*.exe
+*.pdb
+*.pak
+*.pkz
+
+# Logs
+*.log
+
+# Installer state
+.headtracking-state.json

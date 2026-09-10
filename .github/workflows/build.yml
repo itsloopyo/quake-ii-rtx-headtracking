@@ -1,0 +1,83 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+
+# This workflow only reads the repo and builds it - it publishes nothing and
+# writes no comment. Without a block here the job runs with whatever the
+# repository default for GITHUB_TOKEN is, which on a repo created before the
+# default changed is read/write on every scope, handed to a build that pulls in
+# a submodule, a vendored loader binary and a pinned action chain.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Validate
+    runs-on: windows-latest
+    if: ${{ !startsWith(github.event.head_commit.message, 'Release v') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          submodules: recursive
+          # Without this, checkout leaves the job's GITHUB_TOKEN in
+          # .git/config as an http.extraheader, readable by everything the
+          # build then executes - the pixi task chain, cmake, msbuild, the
+          # submodule's own node and PowerShell scripts. Nothing below this
+          # step talks to a remote: `pixi run test` and `pixi run
+          # validate-manifest` build, package and validate locally, and
+          # Copy-SharedBundle's only git calls are local reads that already
+          # degrade gracefully. `pixi run sync` is a separate task CI never
+          # invokes.
+          persist-credentials: false
+
+      # C++ toolchain for the pixi `package` task's cmake/msbuild build.
+      - name: Setup Visual Studio environment
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
+
+      # run-install: false - this workspace has zero conda dependencies (pixi is
+      # a task runner only; CMake and MSVC come from the runner image). The
+      # action's post-install `pixi list` errors on an empty environment in
+      # pixi 0.70+.
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11 # v0.9.6
+        with:
+          run-install: false
+
+      # Build, test, package and validate through the SAME commands a developer
+      # runs locally. All build logic lives in the pixi task chain (setup ->
+      # build-release -> package -> validate-manifest); the workflow owns none,
+      # so local and CI can't drift.
+      - name: Test
+        shell: pwsh
+        run: pixi run test
+
+      # Packages via its depends-on, then checks the shipped ZIP against
+      # launcher-manifest.json: every manifest source present, no absolute or
+      # ../ target, nothing shipped that no manifest row deploys.
+      - name: Build, package and validate
+        shell: pwsh
+        run: pixi run validate-manifest
+
+      - name: Verify installer was produced
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem release/*-installer.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $zip) {
+            Write-Host "::error::No installer ZIP was produced by 'pixi run package'"
+            exit 1
+          }
+          Write-Host "Installer: $($zip.Name) ($([math]::Round($zip.Length / 1MB, 2)) MB)"

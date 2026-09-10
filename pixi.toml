@@ -1,0 +1,61 @@
+[workspace]
+name = "quake-ii-rtx-head-tracking"
+version = "0.0.0"
+description = "6DOF head tracking mod for Quake II RTX using the CameraUnlock shared library"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tasks]
+sync = "git submodule update --remote cameraunlock-core"
+# No -G: let CMake auto-detect the installed Visual Studio generator. Pinning
+# "Visual Studio 17 2022" broke on CI once the windows runner image moved to
+# VS 2026 (VS 17 absent); auto-detect picks whatever VS the machine has.
+#
+# Unconditional, not guarded on the directory existing. `cmake -B build` creates
+# build/ before configure can fail, so a configure that died afterwards - an
+# uninitialised submodule, no toolset - left a directory with no CMakeCache.txt
+# that every later task then skipped, failing with "could not load cache" until
+# somebody deleted it by hand. Re-configuring is idempotent and fails loudly
+# every time instead of once. The one thing it will not do is convert a build
+# tree configured with a different generator or platform - CMake treats that as
+# a fatal mismatch rather than a reconfigure, so `pixi run clean` is the answer
+# there, and now it says so on the first task rather than the tenth.
+setup = "cmake -B build -A x64"
+
+build = { cmd = "cmake --build build --config Debug", depends-on = ["setup"] }
+build-release = { cmd = "cmake --build build --config Release", depends-on = ["setup"] }
+
+# The mod's own characterization tests plus the core library's suite. Both are
+# built by `build-release`, so this only runs them.
+test = { cmd = "ctest --test-dir build -C Release --output-on-failure", depends-on = ["build-release"] }
+
+deploy = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Debug", depends-on = ["build"] }
+deploy-release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build-release"] }
+
+install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build-release"] }
+uninstall = "scripts/uninstall.cmd /y"
+
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build-release"] }
+release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1" }
+
+update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
+
+# The gates cameraunlock-core ships. They were present and unrun until now, and
+# both of the things they check had already drifted: the manifest did not deploy
+# the .ini install.cmd seeds, and the notices named a loader build that is not
+# the one in vendor/.
+validate-manifest = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/validate-manifest.ps1", depends-on = ["package"] }
+validate-notices = "node cameraunlock-core/scripts/validate-notices.mjs"
+# Reports one known FAIL that is NOT a defect here: its readme rule rejects
+# "any OpenTrack compatible tracker", which is the exact sentence AGENTS.md
+# mandates for every mod's one-line description. Do not reword the README to
+# satisfy it; the disagreement has to be settled in cameraunlock-core.
+conformance = "powershell -ExecutionPolicy Bypass -File cameraunlock-core/scripts/conformance.ps1"
+
+release-nightly = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release-nightly.ps1" }
+
+clean = { cmd = """
+    powershell -Command "if (Test-Path 'build') { Remove-Item 'build' -Recurse -Force }; Write-Host 'Build artifacts cleaned' -ForegroundColor Green"
+""" }
+
+[dependencies]

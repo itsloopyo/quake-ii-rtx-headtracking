@@ -1,0 +1,30 @@
+{
+    "schema_version": 2,
+    "mod_info": {
+        "name": "QuakeIIRTXHeadTracking",
+        "version": "0.0.0",
+        "game_id": "quake-ii-rtx"
+    },
+    "strategy": "AsiLoader",
+    "delivery_mode": "manifest",
+    "loader": {
+        "seed": [
+            {
+                "target": "HeadTracking.ini",
+                "content_b64": "OyBRdWFrZSBJSSBSVFggSGVhZCBUcmFja2luZyBjb25maWd1cmF0aW9uCjsgU2VuZCBPcGVuVHJhY2sgVURQIG91dHB1dCB0byAxMjcuMC4wLjE6NDI0MiAoT3V0cHV0OiBVRFAgb3ZlciBuZXR3b3JrKS4KCltHZW5lcmFsXQpFbmFibGVkPTEKVWRwUG9ydD00MjQyCgpbUm90YXRpb25dCllhd1NlbnNpdGl2aXR5PTEKUGl0Y2hTZW5zaXRpdml0eT0xClJvbGxTZW5zaXRpdml0eT0xCkludmVydFlhdz0wCkludmVydFBpdGNoPTAKSW52ZXJ0Um9sbD0wCjsgU21vb3RoaW5nIGlzIHBpY2tlZCBwZXIgY29ubmVjdGlvbiBmcm9tIHRoZSB0cmFja2VyJ3Mgc291cmNlIGFkZHJlc3MKOyBhbmQgY292ZXJzIHJvdGF0aW9uIGFuZCBwb3NpdGlvbi4gMCA9IG5vbmUsIDEgPSBoZWF2eS4KOyBMb2NhbFNtb290aGluZzogdHJhY2tlciBydW5zIG9uIHRoaXMgbWFjaGluZSAobG9vcGJhY2spCkxvY2FsU21vb3RoaW5nPTAKOyBSZW1vdGVTbW9vdGhpbmc6IHRyYWNrZXIgaXMgYSByZW1vdGUgZGV2aWNlIG9uIHRoZSBuZXR3b3JrClJlbW90ZVNtb290aGluZz0wLjE1CjsgV29ybGRTcGFjZVlhdzogaGVhZCB5YXcgYWJvdXQgd29ybGQgdXAsIHNvIHRoZSBob3Jpem9uIHN0YXlzIGxldmVsIGhvd2V2ZXIKOyBmYXIgdGhlIG1vdXNlIGlzIHBpdGNoZWQuIDAgdHVybnMgaXQgYWJvdXQgdGhlIGNhbWVyYSdzIG93biB1cCBheGlzIGluc3RlYWQuCjsgUGFnZSBEb3duIHN3aXRjaGVzIGl0IGluIGdhbWUuCldvcmxkU3BhY2VZYXc9MQoKW1Bvc2l0aW9uXQpFbmFibGVkPTEKU2Vuc2l0aXZpdHlYPTEKU2Vuc2l0aXZpdHlZPTEKU2Vuc2l0aXZpdHlaPTEKOyBIb3cgZmFyIHRoZSBleWUgbWF5IGxlYXZlIHRoZSBib2R5LCBpbiBtZXRlcnMuIDAuMDEgLSAwLjUuCkxpbWl0WD0wLjMKTGltaXRZPTAuMgpMaW1pdFo9MC40CkxpbWl0WkJhY2s9MC4xCjsgUG9zaXRpb24gdXNlcyB0aGUgW1JvdGF0aW9uXSBMb2NhbFNtb290aGluZyAvIFJlbW90ZVNtb290aGluZyB2YWx1ZXMKOyBRdWFrZSB1bml0cyBwZXIgbWV0cmUgKHZpZXdvcmcgaXMgaW4gUXVha2UgdW5pdHMsIH4xIHBlciBpbmNoKS4KOyBUaGlzIGNvbnZlcnRzIHVuaXRzLiBJdCBkb2VzIG5vdCBzZXQgaG93IGZhciB5b3UgbGVhbiAtIHRoZQo7IExpbWl0IHZhbHVlcyBhYm92ZSBkbyB0aGF0LCBhbmQgeW91ciB0cmFja2VyIHNldHMgdGhlIHJlc3QuClVuaXRzUGVyTWV0ZXI9NDAKCltDb2xsaXNpb25dCjsgU3RvcHMgYSBsZWFuIHB1dHRpbmcgdGhlIHZpZXcgaW5zaWRlIGEgd2FsbC4gUm90YXRpb24gaXMgdW5hZmZlY3RlZC4KQ29sbGlzaW9uRW5hYmxlZD0xCjsgUXVha2UgdW5pdHMgdGhlIGV5ZSBpcyBoZWxkIG9mZiBhIGJsb2NraW5nIHN1cmZhY2UKQ29sbGlzaW9uTWFyZ2luPTQKOyBIb3cgZmFzdCB0aGUgbGVhbiByZW9wZW5zIG9uY2UgdGhlIG9ic3RydWN0aW9uIGNsZWFycyAoMCA9IGluc3RhbnQpCkNvbGxpc2lvblJlbGVhc2VTbW9vdGhpbmc9MC45CgpbQ29udHJvbHNdCjsgVmlydHVhbCBrZXkgY29kZXMgaW4gaGV4LiBDaG9yZCBhbHRlcm5hdGl2ZXMgKG5vIGVkaXQgbmVlZGVkKToKOyAgIFRvZ2dsZSBDdHJsK1NoaWZ0K1ksIEN5Y2xlIHRyYWNraW5nIG1vZGUgQ3RybCtTaGlmdCtHLAo7ICAgVG9nZ2xlIHlhdyBtb2RlIEN0cmwrU2hpZnQrSApUb2dnbGVLZXk9MHgyMwpUb2dnbGVQb3NpdGlvbktleT0weDIxClRvZ2dsZVlhd0tleT0weDIyCg=="
+            }
+        ]
+    },
+    "files": [
+        {
+            "source": "vendor/ultimate-asi-loader/dinput8.dll",
+            "target": "winmm.dll"
+        },
+        {
+            "source": "plugins/QuakeIIRTXHeadTracking.asi",
+            "target": "QuakeIIRTXHeadTracking.asi"
+        }
+    ],
+    "runtime_requirements": [],
+    "dependencies": []
+}
