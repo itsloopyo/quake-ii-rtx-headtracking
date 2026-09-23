@@ -29,6 +29,13 @@ without the mod.
 
 ## Installation
 
+### Lopari
+
+Download [Lopari](https://lopari.app), choose **Quake II RTX**, and click
+**Play with head tracking**.
+
+### Standalone Installer
+
 1. Download `QuakeIIRTXHeadTracking-v<version>-installer.zip` from the
    [Releases](https://github.com/itsloopyo/quake-ii-rtx-headtracking/releases)
    page.
