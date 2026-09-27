@@ -11,3 +11,8 @@ extern/** -text
 *.cmd text eol=crlf
 *.bat text eol=crlf
 *.dll binary
+
+# The config differential test's oracle and data are byte-for-byte copies whose SHA-256
+# tests/config_differential/provenance.txt records, so no checkout may rewrite their line endings.
+tests/config_differential/oracle/** -text
+tests/config_differential/data/** -text

@@ -45,6 +45,7 @@ set(MOD_PURE_SOURCES
 # target because HeadTracking.ini is the mod's one untrusted input.
 set(MOD_TESTABLE_SOURCES
     src/core/config.cpp
+    src/legacy_config/legacy_config.cpp
 )
 
 set(MOD_SOURCES
@@ -117,4 +118,51 @@ if(Q2RTXHT_BUILD_TESTS)
     target_link_libraries(quake_ii_rtx_headtracking_tests PRIVATE cameraunlock)
     add_test(NAME quake_ii_rtx_headtracking_tests
              COMMAND quake_ii_rtx_headtracking_tests)
+
+    # The config differential test. The oracle is the dev pre-release's reader and hotkey
+    # registration with the core sources they compiled, copied verbatim into
+    # tests/config_differential/oracle. It is two libraries because the registration has to run on
+    # oracle_fake's recording poller; each renames the namespaces its own way, so neither collides
+    # with the other or with the current core.
+    set(Q2_ORACLE_DIR ${CMAKE_SOURCE_DIR}/tests/config_differential/oracle)
+    add_library(q2_config_oracle STATIC
+        ${Q2_ORACLE_DIR}/src/core/config.cpp
+        ${Q2_ORACLE_DIR}/core/src/config/ini_reader.cpp
+        ${Q2_ORACLE_DIR}/core/src/config/value_guards.cpp
+        ${Q2_ORACLE_DIR}/core/src/logging/file_log.cpp
+        tests/config_differential/oracle_config_adapter.cpp
+    )
+    target_include_directories(q2_config_oracle PRIVATE
+        ${Q2_ORACLE_DIR}/src
+        ${Q2_ORACLE_DIR}/core/include
+        ${CMAKE_SOURCE_DIR}/tests/config_differential)
+    target_compile_definitions(q2_config_oracle PRIVATE
+        cameraunlock=q2_oracle_core
+        Q2RTXHT=q2_oracle)
+
+    add_library(q2_hotkeys_oracle STATIC
+        tests/config_differential/oracle_hotkeys_adapter.cpp
+    )
+    target_include_directories(q2_hotkeys_oracle PRIVATE
+        ${CMAKE_SOURCE_DIR}/tests/config_differential/oracle_fake
+        ${Q2_ORACLE_DIR}/core/include
+        ${CMAKE_SOURCE_DIR}/tests/config_differential)
+    target_compile_definitions(q2_hotkeys_oracle PRIVATE
+        cameraunlock=q2_oracle_hk_core)
+
+    add_executable(config_differential_tests
+        tests/config_differential/differential_tests.cpp
+        ${MOD_TESTABLE_SOURCES}
+    )
+    target_include_directories(config_differential_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/tests/config_differential)
+    target_compile_definitions(config_differential_tests PRIVATE
+        Q2RTXHT_DIFFERENTIAL_DATA="${CMAKE_SOURCE_DIR}/tests/config_differential/data")
+    target_link_libraries(config_differential_tests PRIVATE
+        cameraunlock q2_config_oracle q2_hotkeys_oracle)
+    add_test(NAME config_differential_tests COMMAND config_differential_tests)
+    add_test(NAME config_differential_provenance
+             COMMAND ${CMAKE_COMMAND} -DREPO=${CMAKE_SOURCE_DIR}
+                     -P ${CMAKE_SOURCE_DIR}/tests/config_differential/check_provenance.cmake)
 endif()

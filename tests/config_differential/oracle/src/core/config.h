@@ -62,13 +62,15 @@ struct Config {
     int keyTogglePosition = 0x21;  // PageUp
     int keyToggleYaw = 0x22;       // PageDown
 
-    // Loads from path through the frozen dev-build reader (legacy_config/), writing a
-    // documented default file first if it is absent. Returns false only on unrecoverable
-    // IO failure.
+    // Loads from path, writing a documented default file first if it is absent.
+    // Returns false only on unrecoverable IO failure.
     bool LoadOrCreate(const std::string& path);
 
 private:
     void WriteDefault(const std::string& path) const;
+    // Two actions on one key fire both from one press. Reverts the later of any
+    // colliding pair to its compiled default.
+    void RejectDuplicateKeys();
 };
 
 }  // namespace Q2RTXHT
