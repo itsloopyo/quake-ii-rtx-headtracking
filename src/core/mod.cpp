@@ -13,8 +13,14 @@
 #include "cameraunlock/logging/file_log.h"
 #include "cameraunlock/math/smoothing_utils.h"
 #include "cameraunlock/memory/pe_fingerprint.h"
-#include "cameraunlock/input/chord_hotkeys.h"
+#include "cameraunlock/input/key_binding_registration.h"
+#include "cameraunlock/input/key_bindings.h"
 #include "cameraunlock/os/module_paths.h"
+#include "cameraunlock/tracking/tracking_mode.h"
+
+#include <functional>
+#include <stdexcept>
+#include <utility>
 
 namespace Q2RTXHT {
 
@@ -22,8 +28,6 @@ namespace log = cameraunlock::logging;
 namespace os = cameraunlock::os;
 
 namespace {
-
-constexpr char kConfigFileName[] = "\\HeadTracking.ini";
 
 // A frame this long was not rendered - the process was suspended by an alt-tab
 // or a level load - so advancing smoothing by it would snap the view.
@@ -46,17 +50,32 @@ Mod& Mod::Instance() {
 }
 
 void Mod::LoadConfiguration() {
-    // Narrow because IniReader wraps the ANSI GetPrivateProfile* API. An install
-    // path with no ANSI form yields an empty string, and building a relative
-    // path out of that would read and write a different folder entirely.
-    const std::string dir = os::HostExeDirectoryNarrow();
+    const std::wstring dir = os::HostExeDirectory();
     if (dir.empty()) {
-        log::Line("[mod] the game directory has no ANSI form; running on built-in "
-                  "defaults instead of HeadTracking.ini");
-    } else if (!m_config.LoadOrCreate(dir + kConfigFileName)) {
-        log::Line("[mod] HeadTracking.ini could not be opened; running on built-in defaults");
+        throw std::runtime_error("Windows reports no path for q2rtx.exe, so there is nowhere to read "
+                                 "CameraUnlock.ini from");
     }
-    m_enabled.store(m_config.enabled, std::memory_order_relaxed);
+    cameraunlock::config::ConfigOwnerOptions<Config> options =
+        MakeConfigOwnerOptions(dir + L"\\", cameraunlock::config::DefaultsFile::PerUser());
+    // The mod has no overlay, so the player's one-line messages (an import that did not run,
+    // Defaults.ini that cannot be read, a save that failed) go to the log, the only place they
+    // can be seen.
+    options.status_sink = [](const std::string& message) { log::Line("[config] %s", message.c_str()); };
+    m_owner = std::make_unique<cameraunlock::config::ConfigOwner<Config>>(std::move(options));
+    const cameraunlock::config::ConfigLoadResult<Config> loaded = m_owner->Load();
+    for (const std::string& line : loaded.log) log::Line("[config] %s", line.c_str());
+    log::Line("[config] %s %s", kConfigFileName, cameraunlock::config::ConfigLoadStatusName(loaded.status));
+    m_config = loaded.config;
+
+    // The schema takes any margin from 0 up, and one under the shipped standoff has not been
+    // confirmed to keep a wall solid at the eye.
+    if (!(m_config.collisionStandoff >= kMinCollisionMargin && m_config.collisionStandoff <= kMaxCollisionMargin)) {
+        log::Line("[config] CollisionMargin=%.2f is outside %.0f-%.0f Quake units; using %.0f for this session",
+                  m_config.collisionStandoff, kMinCollisionMargin, kMaxCollisionMargin, kDefaultCollisionMargin);
+        m_config.collisionStandoff = kDefaultCollisionMargin;
+    }
+
+    m_enabled.store(m_config.enableOnStartup, std::memory_order_relaxed);
     m_worldSpaceYaw.store(m_config.worldSpaceYaw, std::memory_order_relaxed);
 }
 
@@ -153,30 +172,13 @@ bool Mod::Initialize(void* moduleBase) {
 }
 
 void Mod::ApplyConfigToPipeline() {
-    auto& proc = m_session.GetProcessor();
-
-    cameraunlock::SensitivitySettings sens;
-    sens.yaw = m_config.yawSensitivity;
-    sens.pitch = m_config.pitchSensitivity;
-    sens.roll = m_config.rollSensitivity;
-    sens.invert_yaw = m_config.invertYaw;
-    sens.invert_pitch = m_config.invertPitch;
-    sens.invert_roll = m_config.invertRoll;
-    proc.SetSensitivity(sens);
-
+    // The rotation processor keeps its identity sensitivity: the tracker shapes the pose.
     auto& posProc = m_session.GetPositionProcessor();
 
     cameraunlock::PositionSettings pos;
-    pos.sensitivity_x = m_config.posSensX;
-    pos.sensitivity_y = m_config.posSensY;
-    pos.sensitivity_z = m_config.posSensZ;
     pos.limit_x = m_config.posLimitX;
-    // The clamp is [-limit_y_down, +limit_y] and limit_y_down carries its own
-    // default, so mirror the one configured vertical limit the way
-    // PositionSettings::Symmetric does. Left unset, raising LimitY widened the
-    // upward budget only and downward travel stayed pinned at 0.20m.
     pos.limit_y = m_config.posLimitY;
-    pos.limit_y_down = m_config.posLimitY;
+    pos.limit_y_down = m_config.posLimitYDown;
     pos.limit_z = m_config.posLimitZ;
     pos.limit_z_back = m_config.posLimitZBack;
     // The tracker-to-Quake axis signs live in quake_math and are applied at the
@@ -195,9 +197,9 @@ void Mod::ApplyConfigToPipeline() {
     m_session.SetLocalSmoothing(m_config.localSmoothing);
     m_session.SetRemoteSmoothing(m_config.remoteSmoothing);
 
-    m_session.SetMode(m_config.positionEnabled
-                          ? cameraunlock::TrackingMode::RotationAndPosition
-                          : cameraunlock::TrackingMode::RotationOnly);
+    // The table reads a pair that names no mode as its defaults, so the pair always decodes.
+    m_session.SetMode(
+        cameraunlock::DecodeTrackingMode(m_config.rotationEnabled, m_config.positionEnabled).value());
 }
 
 void Mod::LogConnectionChange() {
@@ -212,17 +214,28 @@ void Mod::LogConnectionChange() {
               isRemote ? "remote" : "local", effective);
 }
 
-void Mod::RegisterHotkeys() {
-    using namespace cameraunlock::input;
-    // Nav-cluster keys (fire only when the chord modifier is NOT held).
-    m_hotkeys.AddHotkey(m_config.keyToggle, NavGuarded([] { Mod::Instance().Toggle(); }));
-    m_hotkeys.AddHotkey(m_config.keyTogglePosition, NavGuarded([] { Mod::Instance().CycleMode(); }));
-    m_hotkeys.AddHotkey(m_config.keyToggleYaw, NavGuarded([] { Mod::Instance().ToggleYawMode(); }));
+namespace {
 
-    // Chord alternatives: Ctrl+Shift+ Y / G / H (T/Y/U/G/H/J cluster).
-    m_hotkeys.AddHotkey('Y', ChordGuarded([] { Mod::Instance().Toggle(); }));
-    m_hotkeys.AddHotkey('G', ChordGuarded([] { Mod::Instance().CycleMode(); }));
-    m_hotkeys.AddHotkey('H', ChordGuarded([] { Mod::Instance().ToggleYawMode(); }));
+// The table read every list through the hotkey codec, so a list that does not parse here is a
+// bug, not a player's typo.
+void Register(cameraunlock::input::HotkeyPoller& poller, const std::string& list, const char* key,
+              std::function<void()> action) {
+    const cameraunlock::input::KeyBindingsParseResult parsed = cameraunlock::input::ParseKeyBindings(list);
+    if (!parsed.ok()) {
+        throw std::logic_error(std::string("[Hotkeys] ") + key + "=" + list + " does not parse: " + parsed.error);
+    }
+    cameraunlock::input::RegisterKeyBindings(poller, parsed.bindings, std::move(action));
+}
+
+}  // namespace
+
+void Mod::RegisterHotkeys() {
+    Register(m_hotkeys, m_config.toggleKey, "ToggleKey", [] { Mod::Instance().Toggle(); });
+    Register(m_hotkeys, m_config.cycleTrackingModeKey, "CycleTrackingModeKey",
+             [] { Mod::Instance().CycleMode(); });
+    Register(m_hotkeys, m_config.yawModeKey, "YawModeKey", [] { Mod::Instance().ToggleYawMode(); });
+    log::Line("[mod] hotkeys: toggle=[%s] mode=[%s] yaw=[%s]", m_config.toggleKey.c_str(),
+              m_config.cycleTrackingModeKey.c_str(), m_config.yawModeKey.c_str());
 
     m_hotkeys.Start(kHotkeyPollIntervalMs);
 }
@@ -257,6 +270,16 @@ bool Mod::GetPositionOffset(float& x, float& y, float& z) const {
     return m_positionValid;
 }
 
+void Mod::LogSave(const char* what, const cameraunlock::config::ConfigSaveResult& saved) {
+    for (const std::string& line : saved.log) log::Line("[config] %s", line.c_str());
+    if (saved.status != cameraunlock::config::ConfigSaveStatus::Saved) {
+        log::Line("[config] %s not saved (%s): %s", what,
+                  cameraunlock::config::ConfigSaveStatusName(saved.status), saved.reason.c_str());
+    }
+}
+
+// End changes the session only. The mode and yaw hotkeys apply the new value, then save it; all
+// three run on the hotkey poller's thread.
 void Mod::Toggle() {
     bool now = !m_enabled.load(std::memory_order_relaxed);
     m_enabled.store(now, std::memory_order_relaxed);
@@ -264,7 +287,8 @@ void Mod::Toggle() {
 }
 
 void Mod::CycleMode() {
-    switch (m_session.CycleMode()) {
+    const cameraunlock::TrackingMode next = m_session.CycleMode();
+    switch (next) {
         case cameraunlock::TrackingMode::RotationOnly:
             log::Line("[mod] tracking mode: rotation only");
             break;
@@ -275,12 +299,18 @@ void Mod::CycleMode() {
             log::Line("[mod] tracking mode: rotation and position");
             break;
     }
+    const cameraunlock::TrackingModeChannels mode = cameraunlock::EncodeTrackingMode(next);
+    LogSave("tracking mode", m_owner->Save([mode](Config& c) {
+        c.rotationEnabled = mode.rotation_enabled;
+        c.positionEnabled = mode.position_enabled;
+    }));
 }
 
 void Mod::ToggleYawMode() {
     const bool worldSpace = !m_worldSpaceYaw.load(std::memory_order_relaxed);
     m_worldSpaceYaw.store(worldSpace, std::memory_order_relaxed);
     log::Line("[mod] yaw mode: %s", worldSpace ? "world-locked" : "camera-local");
+    LogSave("WorldSpaceYaw", m_owner->Save([worldSpace](Config& c) { c.worldSpaceYaw = worldSpace; }));
 }
 
 }  // namespace Q2RTXHT

@@ -42,7 +42,8 @@ Download [Lopari](https://lopari.app), choose **Quake II RTX**, and click
 2. Extract it anywhere.
 3. Double-click `install.cmd`. It finds your Quake II RTX install, drops the
    Ultimate ASI Loader (`winmm.dll`) and `QuakeIIRTXHeadTracking.asi` next to
-   `q2rtx.exe`, and writes a default `HeadTracking.ini`.
+   `q2rtx.exe`. The mod creates `CameraUnlock.ini` there the first time it
+   starts.
 4. Set OpenTrack's output to UDP over network, host `127.0.0.1`, port `4242`.
 5. Launch the game.
 
@@ -63,21 +64,18 @@ install.cmd
 
 ### Manual Installation
 
-Everything comes out of the same installer ZIP. Copy three files into the Quake
+Everything comes out of the same installer ZIP. Copy two files into the Quake
 II RTX install root, next to `q2rtx.exe`:
 
 - `vendor\ultimate-asi-loader\dinput8.dll`, **renamed to `winmm.dll`**. This is
   the Ultimate ASI Loader, and `winmm.dll` is the name `q2rtx.exe` loads it
   under. Copied without renaming it, nothing happens.
 - `plugins\QuakeIIRTXHeadTracking.asi`, the mod itself.
-- `plugins\HeadTracking.ini`, the config file. The mod writes a default one if
-  it is missing, so this step only matters if you want to edit settings before
-  the first launch.
 
 Mod managers do not install this mod. The payload has to sit in the game root
 beside the exe, and a manager deploys into one fixed subfolder of the game, so
 a manager install would put the files somewhere the loader never looks, load
-nothing, and still report success. Use `install.cmd`, or copy the three files
+nothing, and still report success. Use `install.cmd`, or copy the two files
 by hand.
 
 ## Setting Up OpenTrack
@@ -117,7 +115,7 @@ filters on-device before it sends.
 What decides the wiring is how much filtering the app does before the packet
 leaves the phone. An app that filters on-device can send direct: point it at
 this PC's LAN address (run `ipconfig` to find it) on port `4242`. The mod smooths
-what arrives with the two values under `[Rotation]` and does not filter the
+what arrives with the two values under `[Smoothing]` and does not filter the
 signal beyond that, so how steady the direct route looks depends mostly on how
 much the app does before it sends.
 
@@ -140,13 +138,14 @@ CENTER button in Headcam, SteamVR's reset) and the view sits centered.
 
 ## Controls
 
-Two equivalent binding sets, use whichever your keyboard has:
+Each action has a list of keys, and any key in it fires the action. By default
+each list holds a nav-cluster key and a chord, so use whichever your keyboard has:
 
-| Action | Nav-cluster | Chord |
-|--------|-------------|-------|
-| Toggle tracking | `End` | `Ctrl+Shift+Y` |
-| Cycle tracking mode | `Page Up` | `Ctrl+Shift+G` |
-| Toggle yaw mode (world / camera-local) | `Page Down` | `Ctrl+Shift+H` |
+| Action              | Default keys               | Setting                |
+|---------------------|----------------------------|------------------------|
+| Toggle tracking     | `End`, `Ctrl+Shift+Y`      | `ToggleKey`            |
+| Cycle tracking mode | `PageUp`, `Ctrl+Shift+G`   | `CycleTrackingModeKey` |
+| Toggle yaw mode     | `PageDown`, `Ctrl+Shift+H` | `YawModeKey`           |
 
 `Page Up` / `Ctrl+Shift+G` cycles tracking mode:
 
@@ -155,81 +154,120 @@ Two equivalent binding sets, use whichever your keyboard has:
 3. Rotational tracking disabled, positional tracking enabled
 4. Back to normal
 
+`Page Down` / `Ctrl+Shift+H` switches head yaw between world-locked (yaw around
+the world up axis, the default) and camera-local.
+
+The tracking mode and the yaw mode are saved to `CameraUnlock.ini` the moment
+they change, so the next launch starts in the mode you left it in. `End` turns
+tracking on and off for the session only and saves nothing: whether tracking is
+on at launch is `EnableOnStartup`.
+
+Every key in the three lists, the chords included, can be changed or removed
+under `[Hotkeys]` in `CameraUnlock.ini`, for example `ToggleKey=F8, Ctrl+Shift+Y`.
+
 ## Configuration
 
-`HeadTracking.ini` sits next to `q2rtx.exe` and is read at launch.
+<!-- cameraunlock:config -->
+The mod reads its settings from `CameraUnlock.ini` in the game folder, and creates the file when it starts and finds none. Edit it with any text editor.
+
+A setting set to `default` takes its value from `Defaults.ini`, which every head tracking mod that keeps its settings in `CameraUnlock.ini` reads. Head tracking mods that keep their settings in another file do not read it. Writing a value in place of `default` changes that setting for this game only. When the mod saves a setting that a hotkey changed in game, it writes the new value in place of `default`, so that setting no longer follows `Defaults.ini` in this game until you set it to `default` again.
+
+`Defaults.ini` is `%AppData%\CameraUnlock\Defaults.ini` on Windows; `$XDG_CONFIG_HOME/CameraUnlock/Defaults.ini` on Linux, or `~/.config/CameraUnlock/Defaults.ini` where `XDG_CONFIG_HOME` is not set, under Wine and Proton too; and `~/Library/Application Support/CameraUnlock/Defaults.ini` on macOS. The mod's log, where it writes one, names the file it read.
+
+When the mod starts and finds no `Defaults.ini`, it creates one holding the built-in values, unless Windows runs the game as a packaged app. The mod never changes `Defaults.ini` after that. Edit it with any text editor.
+
+The built-in value of each setting set to `default` below:
+
+- `UdpPort=4242`
+- `EnableOnStartup=true`
+- `WorldSpaceYaw=true`
+- `RotationEnabled=true`
+- `LocalSmoothing=0.0`
+- `RemoteSmoothing=0.15`
+- `PositionEnabled=true`
+- `PositionLimitX=0.3`
+- `PositionLimitY=0.2`
+- `PositionLimitYDown=0.2`
+- `PositionLimitZ=0.4`
+- `PositionLimitZBack=0.1`
+- `CollisionEnabled=true`
+- `CollisionReleaseSmoothing=0.9`
+- `ToggleKey=End, Ctrl+Shift+Y`
+- `CycleTrackingModeKey=PageUp, Ctrl+Shift+G`
+- `YawModeKey=PageDown, Ctrl+Shift+H`
+
+With every setting at its default, the file reads:
 
 ```ini
-; Quake II RTX Head Tracking configuration
-; Send OpenTrack UDP output to 127.0.0.1:4242 (Output: UDP over network).
+; Quake II RTX head tracking settings.
+; Comments start with ; and go on their own line. Text after a value is part of the value.
+; Hotkeys are key names such as End, PageUp or Ctrl+Shift+Y. Separate several with commas; leave empty for none.
+; A setting set to default takes its value from Defaults.ini, which every head tracking mod
+; that keeps its settings in CameraUnlock.ini reads: %AppData%\CameraUnlock\Defaults.ini on
+; Windows, $XDG_CONFIG_HOME/CameraUnlock/Defaults.ini (normally ~/.config/CameraUnlock) on
+; Linux, under Wine and Proton too, and ~/Library/Application Support/CameraUnlock/Defaults.ini
+; on macOS. The log names the file it read. Write a value instead of default to change that
+; setting for this game only.
+
+[CameraUnlock]
+; Written by the mod. Leave this section in place.
+ConfigFormat=1
+
+[Network]
+; UDP port the mod receives tracker data on (OpenTrack protocol).
+UdpPort=default
 
 [General]
-Enabled=1
-UdpPort=4242
+; true: head tracking is on when the game starts. ToggleKey turns it on and off.
+EnableOnStartup=default
+; true: yaw turns around the world's up axis. false: around the camera's own up axis.
+WorldSpaceYaw=default
+; true: turning your head turns the view.
+; Tracking mode at startup, with PositionEnabled. The mode hotkey changes both.
+RotationEnabled=default
 
-[Rotation]
-YawSensitivity=1
-PitchSensitivity=1
-RollSensitivity=1
-InvertYaw=0
-InvertPitch=0
-InvertRoll=0
-; Smoothing is picked per connection from the tracker's source address
-; and covers rotation and position. 0 = none, 1 = heavy.
-; LocalSmoothing: tracker runs on this machine (loopback)
-LocalSmoothing=0
-; RemoteSmoothing: tracker is a remote device on the network
-RemoteSmoothing=0.15
-; WorldSpaceYaw: head yaw about world up, so the horizon stays level however
-; far the mouse is pitched. 0 turns it about the camera's own up axis instead.
-; Page Down switches it in game.
-WorldSpaceYaw=1
+[Smoothing]
+; Smoothing when the tracker runs on this PC. 0 is the least, 1 the most.
+LocalSmoothing=default
+; Smoothing when the tracker is another device on the network, such as a phone.
+; 0 is the least, 1 the most.
+RemoteSmoothing=default
 
 [Position]
-Enabled=1
-SensitivityX=1
-SensitivityY=1
-SensitivityZ=1
-; How far the eye may leave the body, in meters. 0.01 - 0.5.
-LimitX=0.3
-LimitY=0.2
-LimitZ=0.4
-LimitZBack=0.1
-; Position uses the [Rotation] LocalSmoothing / RemoteSmoothing values
-; Quake units per metre (vieworg is in Quake units, ~1 per inch).
-; This converts units. It does not set how far you lean - the
-; Limit values above do that, and your tracker sets the rest.
-UnitsPerMeter=40
+; true: moving your head moves the view.
+; Tracking mode at startup, with RotationEnabled. The mode hotkey changes both.
+PositionEnabled=default
+; How far, in metres, leaning left or right can move the view.
+PositionLimitX=default
+; How far, in metres, raising your head can move the view.
+PositionLimitY=default
+; How far, in metres, lowering your head can move the view.
+PositionLimitYDown=default
+; How far, in metres, leaning forward can move the view.
+PositionLimitZ=default
+; How far, in metres, leaning back can move the view.
+PositionLimitZBack=default
+; true: leaning stops at walls instead of moving the view through them.
+CollisionEnabled=default
+; How far, in Quake units (about 1 per inch), a lean holds the eye off a wall. 4 to 64.
+CollisionMargin=4.0
+; How gently the view eases back out after a wall stopped a lean.
+; 0 is the quickest, 1 the slowest.
+CollisionReleaseSmoothing=default
 
-[Collision]
-; Stops a lean putting the view inside a wall. Rotation is unaffected.
-CollisionEnabled=1
-; Quake units the eye is held off a blocking surface
-CollisionMargin=4
-; How fast the lean reopens once the obstruction clears (0 = instant)
-CollisionReleaseSmoothing=0.9
-
-[Controls]
-; Virtual key codes in hex. Chord alternatives (no edit needed):
-;   Toggle Ctrl+Shift+Y, Cycle tracking mode Ctrl+Shift+G,
-;   Toggle yaw mode Ctrl+Shift+H
-ToggleKey=0x23
-TogglePositionKey=0x21
-ToggleYawKey=0x22
+[Hotkeys]
+; Turns head tracking on and off.
+ToggleKey=default
+; Changes the tracking mode: rotation and position, rotation only, position only.
+CycleTrackingModeKey=default
+; Switches yaw between the world's up axis and the camera's own (WorldSpaceYaw).
+YawModeKey=default
 ```
+<!-- /cameraunlock:config -->
 
-Smoothing is the two keys under `[Rotation]`, picked automatically per
-connection from the tracker's source address. Both cover rotation and position.
-
-| Key | Default | Range | Applies to |
-|-----|---------|-------|------------|
-| `LocalSmoothing` | 0.0 | 0.0-1.0 | Tracker running on this machine (loopback) |
-| `RemoteSmoothing` | 0.15 | 0.0-1.0 | Tracker on a remote network device, such as a phone |
-
-A value that is not a number, uses a comma for the decimal point, or falls
-outside the range the setting allows is corrected and named on a `config:` line
-in `QuakeIIRTXHeadTracking.log`, which says what it used instead. That log line
-is the answer to "why did my edit not change anything".
+A value the mod cannot read is named in `QuakeIIRTXHeadTracking.log`, which says
+what it used instead. That log line is the answer to "why did my edit not change
+anything".
 
 Field of view stays with the game: its own **"field of view"** slider is in the
 video menu, 60 to 160 degrees, and it is the `fov` console variable if you
@@ -277,15 +315,16 @@ the factor it derived from them; in ordinary play it reads `1.0000`.
 **Jittery or unstable tracking**
 
 - Raise `RemoteSmoothing` for a phone or other network tracker, or
-  `LocalSmoothing` for one running on this PC.
+  `LocalSmoothing` for one running on this PC. Both are under `[Smoothing]` in
+  `CameraUnlock.ini`.
 - If a direct phone feed is unsteady, point the app at OpenTrack's **UDP over
   network** input instead and let its filters and curves clean the feed up
   before OpenTrack forwards it to `127.0.0.1:4242`.
 
 **Wrong rotation axis**
 
-- Flip the matching `InvertYaw`, `InvertPitch` or `InvertRoll` flag. Pitch is
-  the one that is reversed on some trackers.
+- Invert the axis in your tracker's own profile. The mod applies the pose as the
+  tracker sends it.
 - If yaw feels wrong when looking steeply up or down, toggle between
   world-locked and camera-local yaw with `Page Down`. World-locked (the default)
   keeps yaw on the horizon; camera-local follows the camera's current up axis,
@@ -294,8 +333,8 @@ the factor it derived from them; in ordinary play it reads `1.0000`.
 
 **Leaning still puts the view through a wall**
 
-- The lean clamp is the `[Collision]` block in `HeadTracking.ini`.
-  `CollisionEnabled=1` turns it on, `CollisionMargin` is how many Quake units
+- The lean clamp is three settings under `[Position]` in `CameraUnlock.ini`.
+  `CollisionEnabled=true` turns it on, `CollisionMargin` is how many Quake units
   the eye is held off a blocking surface, and `CollisionReleaseSmoothing` is how
   quickly the lean reopens once you step clear.
 - The log says what it is doing. `[lean] collision clamp` records whether it is
@@ -320,14 +359,15 @@ the factor it derived from them; in ordinary play it reads `1.0000`.
 
 ## Updating
 
-Download the new release and run `install.cmd` again. Your config is preserved.
+Download the new release and run `install.cmd` again. `CameraUnlock.ini` is
+left as it is.
 
 ## Uninstalling
 
-Run `uninstall.cmd`. This removes the mod, your `HeadTracking.ini` and the mod's
-logs. The Ultimate ASI Loader is only removed if the installer put it there. Use
-`uninstall.cmd /force` to remove it anyway. Copy `HeadTracking.ini` somewhere
-else first if you want your settings back afterwards.
+Run `uninstall.cmd`. This removes the mod and its logs, and leaves
+`CameraUnlock.ini` in place so your settings are there if you install it again.
+The Ultimate ASI Loader is only removed if the installer put it there. Use
+`uninstall.cmd /force` to remove it anyway.
 
 ## Building from Source
 

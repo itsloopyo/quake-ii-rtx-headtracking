@@ -5,6 +5,7 @@
 #include <process.h>
 #include <cstdint>
 #include <cwctype>
+#include <exception>
 #include <string>
 
 #include "version.h"
@@ -59,9 +60,16 @@ unsigned __stdcall InitThread(void*) {
     // the R_RenderFrame function pointer, and the render hook's own installer
     // thread already polls for it - waiting a second time only delayed the
     // config load, the fingerprint check and every log line behind it.
-    if (!Q2RTXHT::Mod::Instance().Initialize(GetModuleHandleW(nullptr))) {
-        // An unrecognised build leaves the mod dormant and the game vanilla, and
-        // that has to include its window: a mod doing nothing must not move it.
+    // An exception escaping a thread procedure is std::terminate, which takes the
+    // game down with it. The log is the only place the player can see why.
+    try {
+        if (!Q2RTXHT::Mod::Instance().Initialize(GetModuleHandleW(nullptr))) {
+            // An unrecognised build leaves the mod dormant and the game vanilla, and
+            // that has to include its window: a mod doing nothing must not move it.
+            return 1;
+        }
+    } catch (const std::exception& e) {
+        log::Line("[mod] initialisation failed, staying dormant: %s", e.what());
         return 1;
     }
 

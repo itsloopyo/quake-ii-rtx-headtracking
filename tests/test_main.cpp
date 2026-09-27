@@ -2,7 +2,6 @@
 
 int RunQuakeMathTests();
 int RunReticleTests();
-int RunConfigTests();
 int RunBuildProfileTests();
 
 int main() {
@@ -13,7 +12,6 @@ int main() {
     // ordering, so which suite's output came first varied by compiler.
     int failures = RunQuakeMathTests();
     failures += RunReticleTests();
-    failures += RunConfigTests();
     failures += RunBuildProfileTests();
 
     if (failures == 0) {

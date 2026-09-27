@@ -48,26 +48,19 @@ jobs:
       - name: Setup Visual Studio environment
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
-      # run-install: false - this workspace has zero conda dependencies (pixi is
-      # a task runner only; CMake and MSVC come from the runner image). The
-      # action's post-install `pixi list` errors on an empty environment in
-      # pixi 0.70+.
+      # The environment holds nodejs, which the config lint in `pixi run test`
+      # and core's validate-manifest need. CMake and MSVC come from the runner
+      # image.
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11 # v0.9.6
-        with:
-          run-install: false
 
-      # Build, test, package and validate through the SAME commands a developer
+      # Build, test, package and validate through the SAME command a developer
       # runs locally. All build logic lives in the pixi task chain (setup ->
-      # build-release -> package -> validate-manifest); the workflow owns none,
-      # so local and CI can't drift.
-      - name: Test
-        shell: pwsh
-        run: pixi run test
-
-      # Packages via its depends-on, then checks the shipped ZIP against
-      # launcher-manifest.json: every manifest source present, no absolute or
-      # ../ target, nothing shipped that no manifest row deploys.
+      # build-release -> test -> package -> validate-manifest); the workflow owns
+      # none, so local and CI can't drift. validate-manifest then checks the
+      # shipped ZIP against launcher-manifest.json: every manifest source
+      # present, no absolute or ../ target, nothing shipped that no manifest row
+      # deploys.
       - name: Build, package and validate
         shell: pwsh
         run: pixi run validate-manifest

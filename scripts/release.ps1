@@ -82,8 +82,8 @@ function Set-Version {
     (Get-Content $installCmdPath -Raw) -replace 'set "MOD_VERSION=.*?"', "set `"MOD_VERSION=$NewVersion`"" | Set-Content $installCmdPath -NoNewline
     # Regex on the raw text, not ConvertFrom-Json | ConvertTo-Json: the round
     # trip reformats the entire file (Windows PowerShell 5.1 puts two spaces
-    # after every colon), which rewrites the base64 config seed's surroundings
-    # and every other line for a three-character change.
+    # after every colon), which rewrites every other line for a three-character
+    # change.
     $manifestPath = Join-Path $projectDir "launcher-manifest.json"
     (Get-Content $manifestPath -Raw) -replace '("version"\s*:\s*")[0-9]+\.[0-9]+\.[0-9]+"', "`${1}$NewVersion`"" | Set-Content $manifestPath -NoNewline
     # pixi.toml is not read by the release workflow today, which is exactly why
@@ -110,6 +110,10 @@ try {
 }
 
 $tagName = "v$Version"
+
+# Before anything is written or committed: a version below config.canonical_since would ship a
+# descriptor naming a version later than itself.
+Assert-ReleaseNotBelowCanonicalSince -RepoRoot $projectDir -Version $Version
 
 $currentBranch = git rev-parse --abbrev-ref HEAD
 if ($currentBranch -ne "main") {
@@ -178,13 +182,11 @@ Set-Version $Version
 # being released, and the build's failure path undoes it. Leaving the bump
 # applied stranded six modified files with no tag, and the next run then aborted
 # on the uncommitted-changes check without saying which six to revert.
-# Two gates, neither of which the release path used to run. `test` is what
-# compares the three copies of the config document - the shipped ini,
-# Config::WriteDefault and the manifest's base64 loader.seed - so a
-# HeadTracking.ini edit that was not carried into the seed cannot tag and
-# publish a stale config. `validate-manifest` chains through package and checks
-# the built ZIP against the manifest's own file rows, which is a different
-# question and the one that catches a payload path that has moved.
+# Two gates, neither of which the release path used to run. `test` holds the
+# committed config to the table's fresh render and runs the config differential
+# test. `validate-manifest` chains through package and checks the built ZIP
+# against the manifest's own file rows and its config descriptor, which is the
+# one that catches a payload path that has moved.
 Write-Host "Testing and packaging Release configuration..." -ForegroundColor Cyan
 & pixi run test
 if ($LASTEXITCODE -eq 0) { & pixi run validate-manifest }

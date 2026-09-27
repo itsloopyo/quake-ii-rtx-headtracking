@@ -22,7 +22,6 @@ Import-Module (Join-Path $projectRoot "cameraunlock-core\powershell\DevDeploy.ps
 Import-Module (Join-Path $projectRoot "cameraunlock-core\powershell\ModDeployment.psm1") -Force
 
 $buildOutput = Join-Path $projectRoot "bin\$Configuration"
-$configFile = Join-Path $projectRoot 'config\HeadTracking.ini'
 $vendorLoader = Join-Path $projectRoot 'vendor\ultimate-asi-loader\dinput8.dll'
 
 $result = Invoke-DevDeployASILoader `
@@ -30,7 +29,6 @@ $result = Invoke-DevDeployASILoader `
     -GameDisplayName 'Quake II RTX' `
     -BuildOutputPath $buildOutput `
     -ModDllName 'QuakeIIRTXHeadTracking.asi' `
-    -ConfigFile $configFile `
     -VendorLoaderDll $vendorLoader `
     -AsiLoaderName 'winmm.dll' `
     -ExtraDlls @() `

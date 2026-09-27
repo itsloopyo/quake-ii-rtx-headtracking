@@ -16,3 +16,7 @@ extern/** -text
 # tests/config_differential/provenance.txt records, so no checkout may rewrite their line endings.
 tests/config_differential/oracle/** -text
 tests/config_differential/data/** -text
+
+# The committed config is the byte-for-byte fresh render of the config table, CRLF included,
+# which config_tests and core's lint compare, so no checkout may rewrite its line endings.
+config/HeadTracking.ini -text

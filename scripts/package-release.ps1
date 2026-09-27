@@ -35,8 +35,6 @@ if (-not (Test-Path $releaseDir)) { New-Item -ItemType Directory -Path $releaseD
 
 $asiPath = Join-Path $projectDir "bin/Release/QuakeIIRTXHeadTracking.asi"
 if (-not (Test-Path $asiPath)) { throw "QuakeIIRTXHeadTracking.asi not found at: $asiPath (run pixi run build-release)" }
-$iniPath = Join-Path $projectDir "config/HeadTracking.ini"
-if (-not (Test-Path $iniPath)) { throw "config/HeadTracking.ini not found" }
 $vendorAsiDir = Join-Path $projectDir "vendor/ultimate-asi-loader"
 $scriptsDir = Join-Path $projectDir "scripts"
 foreach ($s in @("install.cmd", "uninstall.cmd")) {
@@ -56,7 +54,6 @@ foreach ($s in @("install.cmd", "uninstall.cmd")) {
 $pluginsDir = Join-Path $ghStagingDir "plugins"
 New-Item -ItemType Directory -Path $pluginsDir -Force | Out-Null
 Copy-Item $asiPath -Destination $pluginsDir -Force
-Copy-Item $iniPath -Destination $pluginsDir -Force
 
 $ghVendorDir = Join-Path $ghStagingDir "vendor/ultimate-asi-loader"
 New-Item -ItemType Directory -Path $ghVendorDir -Force | Out-Null

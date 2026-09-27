@@ -41,8 +41,9 @@ set(MOD_PURE_SOURCES
 )
 
 # Touches no engine memory either, but does touch the filesystem and the Win32
-# profile API, so it is kept apart from MOD_PURE_SOURCES. Shared with the test
-# target because HeadTracking.ini is the mod's one untrusted input.
+# profile API, so it is kept apart from MOD_PURE_SOURCES. Shared with the config
+# tests and the differential test, which exercise CameraUnlock.ini and the import
+# of HeadTracking.ini.
 set(MOD_TESTABLE_SOURCES
     src/core/config.cpp
     src/legacy_config/legacy_config.cpp
@@ -88,9 +89,9 @@ endif()
 
 # Characterization tests for this mod's own logic. The core library brings its
 # own suite; this one covers the tracker-to-Quake axis boundary and the reticle
-# projection and placement, whose signs were established by measurement in game,
-# plus the HeadTracking.ini boundary, which is the only untrusted input the mod
-# has.
+# projection and placement, whose signs were established by measurement in game.
+# config_tests and the differential test cover CameraUnlock.ini and the import of
+# HeadTracking.ini.
 option(Q2RTXHT_BUILD_TESTS "Build the mod's own tests" ON)
 if(Q2RTXHT_BUILD_TESTS)
     enable_testing()
@@ -98,26 +99,29 @@ if(Q2RTXHT_BUILD_TESTS)
         tests/test_main.cpp
         tests/quake_math_tests.cpp
         tests/reticle_tests.cpp
-        tests/config_tests.cpp
         tests/build_profile_tests.cpp
-        ${MOD_TESTABLE_SOURCES}
         ${MOD_PURE_SOURCES}
     )
     target_include_directories(quake_ii_rtx_headtracking_tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
-    # The shipped .ini, Config::WriteDefault and launcher-manifest.json's
-    # loader.seed are three copies of one document. The suite compares them byte
-    # for byte, so it needs the two tracked ones.
-    target_compile_definitions(quake_ii_rtx_headtracking_tests PRIVATE
-        Q2RTXHT_SHIPPED_INI="${CMAKE_CURRENT_SOURCE_DIR}/config/HeadTracking.ini"
-        Q2RTXHT_MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/launcher-manifest.json"
-        Q2RTXHT_PROJECT_VERSION="${PROJECT_VERSION}"
-        Q2RTXHT_INSTALL_CMD="${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.cmd"
-    )
     target_link_libraries(quake_ii_rtx_headtracking_tests PRIVATE cameraunlock)
     add_test(NAME quake_ii_rtx_headtracking_tests
              COMMAND quake_ii_rtx_headtracking_tests)
+
+    # The committed config against the table, a first start, the hotkeys' saves, the
+    # legacy file's ANSI path and the version everywhere it is written.
+    # `--render-config <path>` makes it write the committed file instead (pixi run
+    # render-config).
+    add_executable(config_tests tests/config_tests.cpp ${MOD_TESTABLE_SOURCES})
+    target_include_directories(config_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(config_tests PRIVATE
+        Q2RTXHT_COMMITTED_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/config/HeadTracking.ini"
+        Q2RTXHT_MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/launcher-manifest.json"
+        Q2RTXHT_PROJECT_VERSION="${PROJECT_VERSION}"
+        Q2RTXHT_INSTALL_CMD="${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.cmd")
+    target_link_libraries(config_tests PRIVATE cameraunlock)
+    add_test(NAME config_tests COMMAND config_tests)
 
     # The config differential test. The oracle is the dev pre-release's reader and hotkey
     # registration with the core sources they compiled, copied verbatim into
@@ -158,10 +162,17 @@ if(Q2RTXHT_BUILD_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/tests/config_differential)
     target_compile_definitions(config_differential_tests PRIVATE
-        Q2RTXHT_DIFFERENTIAL_DATA="${CMAKE_SOURCE_DIR}/tests/config_differential/data")
+        Q2RTXHT_DIFFERENTIAL_DATA="${CMAKE_SOURCE_DIR}/tests/config_differential/data"
+        Q2RTXHT_COMMITTED_CONFIG="${CMAKE_SOURCE_DIR}/config/HeadTracking.ini")
     target_link_libraries(config_differential_tests PRIVATE
         cameraunlock q2_config_oracle q2_hotkeys_oracle)
     add_test(NAME config_differential_tests COMMAND config_differential_tests)
+    # Core's canonical config lint over the committed file and every file the differential
+    # test migrated, which it writes beside itself under migrated.
+    add_test(NAME config_lint COMMAND node
+        ${CMAKE_SOURCE_DIR}/tests/config_differential/lint-migrated.mjs
+        $<TARGET_FILE_DIR:config_differential_tests>/migrated)
+    set_tests_properties(config_lint PROPERTIES DEPENDS config_differential_tests)
     add_test(NAME config_differential_provenance
              COMMAND ${CMAKE_COMMAND} -DREPO=${CMAKE_SOURCE_DIR}
                      -P ${CMAKE_SOURCE_DIR}/tests/config_differential/check_provenance.cmake)

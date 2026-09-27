@@ -182,7 +182,7 @@ Vec3 ComputeLeanOffset(const Config& cfg, Mod& mod, const float cleanOrg[3],
     // factor. But the travel limits that keep the eye inside the player's body
     // were applied upstream in metres, BEFORE this multiply, so scaling alone
     // would stop them bounding the excursion they exist to bound: at the
-    // shipped UnitsPerMeter of 40 and the widest factor fov_zoom allows, a full
+    // kUnitsPerMeter of 40 and the widest factor fov_zoom allows, a full
     // forward lean would reach 157 Quake units. The factor may redistribute
     // screen displacement; it may not move the eye further out than the limits
     // authorise. So the scaled pose is held inside the same box the processor
@@ -191,10 +191,10 @@ Vec3 ComputeLeanOffset(const Config& cfg, Mod& mod, const float cleanOrg[3],
     // leaning in. At factor 1.0 every axis is already inside and this is a
     // no-op.
     px = std::clamp(px * zoomFactor, -cfg.posLimitX, cfg.posLimitX);
-    py = std::clamp(py * zoomFactor, -cfg.posLimitY, cfg.posLimitY);
+    py = std::clamp(py * zoomFactor, -cfg.posLimitYDown, cfg.posLimitY);
     pz = std::clamp(pz * zoomFactor, -cfg.posLimitZ, cfg.posLimitZBack);
 
-    const float upm = cfg.positionUnitsPerMeter;
+    const float upm = kUnitsPerMeter;
     const float xs = quake_math::kPosXSign * upm;
     const float ys = quake_math::kPosYSign * upm;
     const float zs = quake_math::kPosZSign * upm;

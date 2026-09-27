@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 
 #include "core/config.h"
 #include "cameraunlock/protocol/udp_receiver.h"
@@ -24,11 +25,12 @@ public:
     bool IsEnabled() const { return m_enabled.load(std::memory_order_relaxed); }
     const Config& GetConfig() const { return m_config; }
 
-    // Separate from Config::worldSpaceYaw, which is the loaded default and is
+    // Separate from Config::worldSpaceYaw, which is the loaded value and is
     // never written after Initialize. This one is flipped from the hotkey
     // thread and read from the render thread every frame, so it has to be
     // atomic - a plain bool written and read across two threads is a race, and
     // the rest of Config is read-only once loaded precisely so it is not one.
+    // The yaw hotkey saves the new value through the config owner.
     bool WorldSpaceYaw() const { return m_worldSpaceYaw.load(std::memory_order_relaxed); }
 
     // Called once per rendered frame from the hook: advances the tracking
@@ -65,8 +67,12 @@ private:
     // Logs which smoothing parameter is in force when the session switches
     // between a local and a remote tracker. The session does the selection.
     void LogConnectionChange();
+    void LogSave(const char* what, const cameraunlock::config::ConfigSaveResult& saved);
 
     Config m_config;
+    // Built in LoadConfiguration before anything reads the config. Only the
+    // hotkey poller's thread calls Save after startup.
+    std::unique_ptr<cameraunlock::config::ConfigOwner<Config>> m_owner;
     cameraunlock::UdpReceiver m_receiver;
     cameraunlock::HeadTrackingSession<cameraunlock::UdpReceiver> m_session;
     // Without IsRemoteConnection() on the receiver the session silently falls
