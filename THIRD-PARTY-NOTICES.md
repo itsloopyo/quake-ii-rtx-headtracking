@@ -16,7 +16,7 @@ and Q2RTX engine conventions" at the end of this file.
 | injector | `3a384e8` (inside Ultimate ASI Loader v9.7.4) | Zlib | Compiled into the vendored dinput8.dll |
 | miniz | 11.0.2 (inside Ultimate ASI Loader v9.7.4) | MIT | Compiled into the vendored dinput8.dll |
 | MinHook | v1.3.4, one local change | BSD-2-Clause | Compiled into `QuakeIIRTXHeadTracking.asi` |
-| cameraunlock-core | de8d03a06f8184253b61f0836a5e3ce9d9003934 | MIT | Compiled into `QuakeIIRTXHeadTracking.asi`, and its install scripts and game catalogue ship as source under `shared/` |
+| cameraunlock-core | ac271752d8fcf37e793b70744aa8eb12588d91ea | MIT | Compiled into `QuakeIIRTXHeadTracking.asi`, and its install scripts and game catalogue ship as source under `shared/` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
 
 ---
@@ -288,7 +288,7 @@ and the game catalogue into `shared/` inside the installer ZIP, and `install.cmd
 calls into them. Our own code, MIT licensed, reproduced here so the notices are
 complete.
 
-- **Version:** commit `de8d03a06f8184253b61f0836a5e3ce9d9003934`
+- **Version:** commit `ac271752d8fcf37e793b70744aa8eb12588d91ea`
 - **License:** MIT
 - **Upstream:** https://github.com/itsloopyo/cameraunlock-core
 - **Usage:** the tracker receiver, the pose pipeline and the lean clamp policy,
