@@ -176,4 +176,5 @@ if(Q2RTXHT_BUILD_TESTS)
     add_test(NAME config_differential_provenance
              COMMAND ${CMAKE_COMMAND} -DREPO=${CMAKE_SOURCE_DIR}
                      -P ${CMAKE_SOURCE_DIR}/tests/config_differential/check_provenance.cmake)
+    set_tests_properties(config_differential_tests config_lint config_differential_provenance PROPERTIES LABELS differential)
 endif()

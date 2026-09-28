@@ -14,13 +14,12 @@ on:
       - 'docs/**'
       - 'LICENSE'
 
-# This workflow only reads the repo and builds it - it publishes nothing and
-# writes no comment. Without a block here the job runs with whatever the
-# repository default for GITHUB_TOKEN is, which on a repo created before the
-# default changed is read/write on every scope, handed to a build that pulls in
-# a submodule, a vendored loader binary and a pinned action chain.
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -37,8 +36,8 @@ jobs:
           # .git/config as an http.extraheader, readable by everything the
           # build then executes - the pixi task chain, cmake, msbuild, the
           # submodule's own node and PowerShell scripts. Nothing below this
-          # step talks to a remote: `pixi run test` and `pixi run
-          # validate-manifest` build, package and validate locally, and
+          # step talks to a remote: `pixi run validate-manifest` builds,
+          # packages and validates locally, and
           # Copy-SharedBundle's only git calls are local reads that already
           # degrade gracefully. `pixi run sync` is a separate task CI never
           # invokes.
@@ -48,15 +47,15 @@ jobs:
       - name: Setup Visual Studio environment
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
-      # The environment holds nodejs, which the config lint in `pixi run test`
-      # and core's validate-manifest need. CMake and MSVC come from the runner
+      # The environment holds nodejs, which core's validate-manifest and the config
+      # lint in `pixi run test-differential` need. CMake and MSVC come from the runner
       # image.
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11 # v0.9.6
 
       # Build, test, package and validate through the SAME command a developer
       # runs locally. All build logic lives in the pixi task chain (setup ->
-      # build-release -> test -> package -> validate-manifest); the workflow owns
+      # build-release -> test-unit -> package -> validate-manifest); the workflow owns
       # none, so local and CI can't drift. validate-manifest then checks the
       # shipped ZIP against launcher-manifest.json: every manifest source
       # present, no absolute or ../ target, nothing shipped that no manifest row

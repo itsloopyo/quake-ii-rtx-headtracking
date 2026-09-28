@@ -28,7 +28,9 @@ build-release = { cmd = "cmake --build build --config Release", depends-on = ["s
 
 # The mod's own characterization tests, the config differential test and the core
 # library's suite. All are built by `build-release`, so this only runs them.
-test = { cmd = "ctest --test-dir build -C Release --output-on-failure", depends-on = ["build-release"] }
+test-unit = { cmd = "ctest --test-dir build -C Release --output-on-failure -LE differential", depends-on = ["build-release"] }
+test-differential = { cmd = "ctest --test-dir build -C Release --output-on-failure --no-tests=error -L differential", depends-on = ["build-release"] }
+test = { depends-on = ["test-unit", "test-differential"] }
 
 # Rewrite config/HeadTracking.ini, the committed copy of the CameraUnlock.ini the mod creates at
 # first launch, from the config table after a change to a row, a comment or a default, then
@@ -41,7 +43,7 @@ deploy-release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deplo
 install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build-release"] }
 uninstall = "scripts/uninstall.cmd /y"
 
-package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build-release", "test"] }
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build-release", "test-unit"] }
 release = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1" }
 
 update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }

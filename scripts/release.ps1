@@ -115,6 +115,18 @@ if (git tag -l $tagName) {
 
 Write-Host "Current version: $currentVersion -> $Version" -ForegroundColor Green
 
+Write-Host "Running the full test suite..." -ForegroundColor Cyan
+Push-Location $projectDir
+try {
+    pixi run test
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error: pixi run test failed. Nothing was changed." -ForegroundColor Red
+        exit 1
+    }
+} finally {
+    Pop-Location
+}
+
 # Generate CHANGELOG from commits since last tag. This is the gate that
 # aborts when there are no user-facing commits, so run it BEFORE mutating
 # any version files or building - a failure here then leaves a clean tree
@@ -148,14 +160,11 @@ Set-Version $Version
 # being released, and the build's failure path undoes it. Leaving the bump
 # applied stranded six modified files with no tag, and the next run then aborted
 # on the uncommitted-changes check without saying which six to revert.
-# Two gates, neither of which the release path used to run. `test` holds the
-# committed config to the table's fresh render and runs the config differential
-# test. `validate-manifest` chains through package and checks the built ZIP
-# against the manifest's own file rows and its config descriptor, which is the
-# one that catches a payload path that has moved.
-Write-Host "Testing and packaging Release configuration..." -ForegroundColor Cyan
-& pixi run test
-if ($LASTEXITCODE -eq 0) { & pixi run validate-manifest }
+# `validate-manifest` chains through package and checks the built ZIP against
+# the manifest's own file rows and its config descriptor, which is the one that
+# catches a payload path that has moved.
+Write-Host "Packaging Release configuration..." -ForegroundColor Cyan
+& pixi run validate-manifest
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: the release build gate failed; reverting the version bump" -ForegroundColor Red
     & git checkout -- $versionedFiles
